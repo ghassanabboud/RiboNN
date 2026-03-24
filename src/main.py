@@ -4,7 +4,7 @@ from pathlib import Path
 
 from src.train import train_model_nested_cv
 from src.transfer_learning import transfer_learning
-from src.predict import predict_using_nested_cross_validation_models
+from src.predict import predict_using_nested_cross_validation_models, predict_using_single_fold_models
 from src.utils.helpers import (
     load_config,
 )
@@ -162,23 +162,37 @@ def main(args) -> None:
 
     if args.predict:
         # Predict TEs in multiple tissue/cell lines using pretrained nested
-        # cross-validation models. Predictions by models trained using the 
-        # same test fold (as indicated by the "fold" column) are averaged 
+        # cross-validation models. Predictions by models trained using the
+        # same test fold (as indicated by the "fold" column) are averaged
         # across the models. The averaged predictions by models using different
         # test folds are then concatenated.
         input_file = "data/prediction_input1.txt"
         # input_file = "data/prediction_input2.txt" # Alternative input file
-        output_file = f"results/{args.species}/prediction_output.txt"
+        fold_suffix = f"_fold{args.fold}" if args.fold is not None else ""
+        output_file = f"results/{args.species}/prediction_output{fold_suffix}.txt"
         Path(output_file).parent.mkdir(parents=True, exist_ok=True)
 
         run_df = pd.read_csv(f"models/{args.species}/runs.csv")
-        predictions = predict_using_nested_cross_validation_models(
-            input_file, 
-            args.species,
-            run_df, 
-            5,
-            batch_size = 32, 
-            num_workers=4) 
+
+        if args.fold is not None:
+            predictions = predict_using_single_fold_models(
+                input_file,
+                args.species,
+                run_df,
+                args.fold,
+                top_k_models_to_use=args.top_k,
+                batch_size=32,
+                num_workers=args.num_workers,
+            )
+        else:
+            predictions = predict_using_nested_cross_validation_models(
+                input_file,
+                args.species,
+                run_df,
+                args.top_k,
+                batch_size=32,
+                num_workers=args.num_workers,
+            )
 
         # Calculate the mean tissue/cell-specific TE across the test folds
         columns_to_aggregate = [col for col in predictions.columns if col.startswith("predicted_")]
@@ -215,5 +229,9 @@ if __name__ == "__main__":
     )
 
     parser.add_argument("species", action="store", nargs="?", default="human", type=str, choices=["human", "mouse"], help="Species to use for prediction (default: human)")
+
+    parser.add_argument("--fold", default=None, type=int, help="Test fold to use for prediction. If not set, all folds are used (nested CV).")
+    parser.add_argument("--top_k", default=5, type=int, help="Number of top models to use per fold for prediction (default: 5).")
+    parser.add_argument("--num_workers", default=4, type=int, help="Number of DataLoader worker processes (default: 4).")
 
     main(parser.parse_args())
