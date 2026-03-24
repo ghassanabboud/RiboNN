@@ -12,3 +12,5 @@ models/
 original_data/
 jobs/
 slurm-*
+papers/
+CLAUDE.md
