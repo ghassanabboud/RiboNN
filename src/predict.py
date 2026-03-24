@@ -103,3 +103,44 @@ def predict_using_nested_cross_validation_models(
     return all_predictions
 
 
+def predict_using_single_fold_models(
+    input_path: str,
+    species: str,
+    run_df: pd.DataFrame,
+    test_fold: int,
+    top_k_models_to_use: int = 5,
+    batch_size: int = 1024,
+    num_workers: int = 4,
+) -> pd.DataFrame:
+    """Make predictions using only the models trained with a specific test fold."""
+
+    print(f"Making predictions using {species} models (test fold {test_fold})...")
+
+    # Create data module
+    config = extract_config(run_df, run_df.run_id[0])
+    config["species"] = species
+    config["max_utr5_len"] = 1_381
+    config["max_cds_utr3_len"] = 11_937
+    config["tx_info_path"] = input_path
+    config["num_workers"] = num_workers
+    config["test_batch_size"] = batch_size
+    config["remove_extreme_txs"] = False
+    config["target_column_pattern"] = None
+    dm = RiboNNDataModule(config)
+
+    test_fold_str = str(test_fold)
+    sub_run_df = run_df.query(
+        "`params.test_fold` == @test_fold_str or `params.test_fold` == @test_fold"
+    ).reset_index(drop=True)
+
+    if sub_run_df.empty:
+        raise ValueError(f"No models found for test fold {test_fold}.")
+
+    prediction_df = predict_using_models_trained_in_one_fold(
+        sub_run_df, config, dm, top_k_models_to_use
+    )
+    prediction_df["fold"] = test_fold
+
+    return prediction_df
+
+
