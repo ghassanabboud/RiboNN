@@ -9,3 +9,6 @@ lightning_checkpoints/
 mlruns/
 results/
 models/
+original_data/
+papers/
+CLAUDE.md
