@@ -233,6 +233,6 @@ if __name__ == "__main__":
     parser.add_argument("--fold", default=None, type=int, help="Test fold to use for prediction. If not set, all folds are used (nested CV).")
     parser.add_argument("--top_k", default=5, type=int, help="Number of top models to use per fold for prediction (default: 5).")
     parser.add_argument("--num_workers", default=4, type=int, help="Number of DataLoader worker processes (default: 4).")
-    parser.add_argument("--input_file", required=True, type=str, help="Path to the input file for prediction.")
+    parser.add_argument("--input_file", default="data/predicition_input1.txt", type=str, help="Path to the input file for prediction.")
 
     main(parser.parse_args())
